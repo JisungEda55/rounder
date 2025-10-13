@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rounder</title>
+  <link rel="icon" type="image/png" href="https://i.ibb.co/tb79mDL/RRR.png">
+  <style>
+    /* LINESeedKR-Bd 폰트 적용 */
+    @font-face {
+      font-family: 'LINESeedKR-Bd';
+      src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_11-01@1.0/LINESeedKR-Bd.woff2') format('woff2');
+      font-weight: 700;
+      font-style: normal;
+    }
+
+    body {
+      font-family: 'LINESeedKR-Bd', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: #f8f8f8;
+      color: #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .container {
+      background-color: white;
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #1d1d1f;
+    }
+
+    /* 파일 선택 버튼을 숨기고 대신 스타일링 가능한 label 사용 */
+    .file-input-container {
+      position: relative;
+      display: inline-block;
+    }
+    .file-input {
+      display: none;
+    }
+    .custom-file-label {
+      background-color: #fc3c1c;
+      color: white;
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: 'LINESeedKR-Bd';
+      transition: background-color 0.3s ease;
+      border: none;
+      text-align: center;
+      display: inline-block;
+    }
+    .custom-file-label:hover {
+      background-color: #c83211;
+    }
+
+    .canvas-container {
+      margin: 20px 0;
+    }
+    canvas {
+      border-radius: 38px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    button {
+      background-color: #fc3c1c;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      font-family: 'LINESeedKR-Bd';
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #c83211;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Rounder</h1>
+
+    <div class="file-input-container">
+      <input type="file" id="imageInput" accept="image/*" class="file-input" />
+      <label for="imageInput" class="custom-file-label">Choose File</label>
+    </div>
+
+    <div class="canvas-container">
+      <canvas id="imageCanvas" width="300" height="400"></canvas>
+    </div>
+
+    <button id="downloadBtn">Download</button>
+  </div>
+
+  <script>
+    const imageInput = document.getElementById('imageInput');
+    const canvas = document.getElementById('imageCanvas');
+    const ctx = canvas.getContext('2d');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const hiddenCanvas = document.createElement('canvas');
+    const hiddenCtx = hiddenCanvas.getContext('2d');
+    let image = new Image();
+
+    imageInput.addEventListener('change', handleImageUpload);
+    downloadBtn.addEventListener('click', downloadImage);
+
+    function handleImageUpload(event) {
+      const file = event.target.files[0];
+      const reader = new FileReader();
+
+      reader.onload = function (e) {
+        image.src = e.target.result;
+        image.onload = function () {
+          fitImageToCanvas();
+        };
+      };
+
+      if (file) {
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function fitImageToCanvas() {
+      const maxWidth = canvas.width;
+      const maxHeight = canvas.height;
+      const ratio = Math.min(maxWidth / image.width, maxHeight / image.height);
+      const width = image.width * ratio;
+      const height = image.height * ratio;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      roundRect(ctx, 0, 0, canvas.width, canvas.height, 38);
+      ctx.clip();
+      ctx.drawImage(image, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
+      ctx.restore();
+    }
+
+    function roundRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    }
+
+    function downloadImage() {
+      // 1. Prepare the image data on the hidden canvas
+      hiddenCanvas.width = image.width;
+      hiddenCanvas.height = image.height;
+
+      hiddenCtx.clearRect(0, 0, hiddenCanvas.width, hiddenCanvas.height);
+      hiddenCtx.save();
+      // Use the same radius as the display canvas (38)
+      roundRect(hiddenCtx, 0, 0, hiddenCanvas.width, hiddenCanvas.height, 38); 
+      hiddenCtx.clip();
+      hiddenCtx.drawImage(image, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
+      hiddenCtx.restore();
+
+      // 2. Convert the canvas content to a data URL (PNG format is default)
+      const imageDataURL = hiddenCanvas.toDataURL('image/png');
+
+      // 3. Check for iOS/Safari-like environment
+      // This is a common heuristic to check for iOS devices.
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+      if (isIOS) {
+        // **For iOS/Safari: Open image in a new tab to prompt 'preview' mode**
+        // This forces a full-screen image display, allowing the user to
+        // long-press and select "Save Image" to save directly to the Photos app.
+        const newWindow = window.open();
+        newWindow.document.write(`<title>Rounded Image</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+            <style>
+              body { margin: 0; background-color: #000; display: flex; justify-content: center; align-items: center; height: 100vh; }
+              img { max-width: 100%; max-height: 100vh; object-fit: contain; }
+            </style>
+            <body>
+              <img src="${imageDataURL}" alt="Rounded Image">
+              <script>
+                // Guide the user on how to manually save on iOS
+                setTimeout(() => {
+                    alert("✅ Image is ready! On an iPhone, long-press the image to save it to your Photos, or use the Share icon (⬆️) and select 'Save Image'.");
+                }, 500);
+              </script>
+            </body>`);
+        newWindow.document.close();
+      } else {
+        // **For other browsers (Android, Desktop): Use the standard download link**
+        const link = document.createElement('a');
+        link.download = 'rounded-image.png';
+        link.href = imageDataURL;
+        link.click();
+      }
+    }
+  </script>
+</body>
+</html>
