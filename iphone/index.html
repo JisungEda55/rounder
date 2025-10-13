@@ -160,6 +160,7 @@
       ctx.closePath();
     }
 
+    // --- UPDATED downloadImage FUNCTION FOR RELIABLE IOS SAVING ---
     function downloadImage() {
       // 1. Prepare the image data on the hidden canvas
       hiddenCanvas.width = image.width;
@@ -167,42 +168,42 @@
 
       hiddenCtx.clearRect(0, 0, hiddenCanvas.width, hiddenCanvas.height);
       hiddenCtx.save();
-      // Use the same radius as the display canvas (38)
       roundRect(hiddenCtx, 0, 0, hiddenCanvas.width, hiddenCanvas.height, 38); 
       hiddenCtx.clip();
       hiddenCtx.drawImage(image, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
       hiddenCtx.restore();
 
-      // 2. Convert the canvas content to a data URL (PNG format is default)
-      const imageDataURL = hiddenCanvas.toDataURL('image/png');
-
-      // 3. Check for iOS/Safari-like environment
-      // This is a common heuristic to check for iOS devices.
+      // 2. Check for iOS/Safari-like environment
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
       if (isIOS) {
-        // **For iOS/Safari: Open image in a new tab to prompt 'preview' mode**
-        // This forces a full-screen image display, allowing the user to
-        // long-press and select "Save Image" to save directly to the Photos app.
-        const newWindow = window.open();
-        newWindow.document.write(`<title>Rounded Image</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-            <style>
-              body { margin: 0; background-color: #000; display: flex; justify-content: center; align-items: center; height: 100vh; }
-              img { max-width: 100%; max-height: 100vh; object-fit: contain; }
-            </style>
-            <body>
-              <img src="${imageDataURL}" alt="Rounded Image">
-              <script>
-                // Guide the user on how to manually save on iOS
-                setTimeout(() => {
-                    alert("✅ Image is ready! On an iPhone, long-press the image to save it to your Photos, or use the Share icon (⬆️) and select 'Save Image'.");
-                }, 500);
-              </script>
-            </body>`);
-        newWindow.document.close();
+        // **A. For iOS: Convert to Blob and open URL**
+        hiddenCanvas.toBlob(function(blob) {
+            if (blob) {
+                // Create an Object URL for the blob
+                const url = URL.createObjectURL(blob);
+                const newWindow = window.open(url, '_blank');
+                
+                // Release the object URL after the page is loaded/closed to free up memory
+                if (newWindow) {
+                    newWindow.onload = () => {
+                        // Display a user guide alert
+                        setTimeout(() => {
+                            alert("✅ Image is ready! On an iPhone, long-press the image to save it to your Photos, or use the Share icon (⬆️) and select 'Save Image'.");
+                        }, 500);
+                        // Clean up the URL after a short delay (or newWindow.onunload)
+                        setTimeout(() => URL.revokeObjectURL(url), 10000); 
+                    };
+                } else {
+                    // This happens if pop-up blockers are active.
+                    alert("🚫 Please disable your browser's Pop-up Blocker and try again.");
+                }
+            }
+        }, 'image/png'); // Specify PNG format
+        
       } else {
-        // **For other browsers (Android, Desktop): Use the standard download link**
+        // **B. For other browsers (Android, Desktop): Use the standard download link**
+        const imageDataURL = hiddenCanvas.toDataURL('image/png');
         const link = document.createElement('a');
         link.download = 'rounded-image.png';
         link.href = imageDataURL;
